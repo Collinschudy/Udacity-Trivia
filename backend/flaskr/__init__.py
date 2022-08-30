@@ -1,6 +1,7 @@
 import os
 from flask import Flask, request, abort, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import or_
 from flask_cors import CORS
 import random
 
@@ -47,7 +48,7 @@ def create_app(test_config=None):
     """
     @app.route('/categories')
     def get_categories():
-        categories = Category.query.order_by(Category.type).all()
+        categories = Category.query.order_by(Category.id).all()
 
         if len(categories) == 0:
             abort(404)
@@ -62,7 +63,7 @@ def create_app(test_config=None):
         selection = Question.query.order_by(Question.id).all()
         current_questions = paginate_questions(request, selection)
 
-        categories = Category.query.order_by(Category.type).all()
+        categories = Category.query.order_by(Category.id).all()
 
         if len(current_questions) == 0:
             abort(404)
@@ -163,8 +164,24 @@ def create_app(test_config=None):
     only question that include that string within their question.
     Try using the word "title" to start.
     """
-    # @app.route('/questions/search')
-    # def search_questions():
+    @app.route('/questions/search')
+    def search_questions():
+        body = request.get_json()
+        search = body.get('searchTerm', None)
+
+        if search:
+            selection = Question.query.filter(
+                Question.question.ilike('%{}%'.format(search))).all()
+
+            current_questions = paginate_questions(request, selection)
+            
+            return jsonify({
+                'success': True,
+                'questions': current_questions,
+                'total_questions': len(current_questions)
+            })
+            
+        
 
 
     """
@@ -175,6 +192,27 @@ def create_app(test_config=None):
     categories in the left column will cause only questions of that
     category to be shown.
     """
+    @app.route('/categories/<int:category_id>/questions')
+    def get_questions_by_category(category_id):
+        try:
+            selection = Question.query.filter(or_(
+                Question.category == str(category_id), Question.category == " " + str(category_id))).order_by(
+                    Question.id).all()
+            
+            
+     
+        
+            current_questions = paginate_questions(request, selection)
+
+            return jsonify({
+                'success': True,
+                'questions': current_questions,
+                'total_questions': len(current_questions),
+                'currentCategory': category_id
+            })
+        except:
+            abort(404)
+
 
     """
     @TODO:
@@ -193,6 +231,32 @@ def create_app(test_config=None):
     Create error handlers for all expected errors
     including 404 and 422.
     """
+    @app.errorhandler(422)
+    def unprocessable(error):
+        return jsonify({
+            "success": False,
+            "error": 422,
+            "message": "unprocessable"
+        }), 422
+
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify({
+            "success": False,
+            "error": 404,
+            "message": "resource not found"
+        }), 404
+
+    
+
+    @app.errorhandler(400)
+    def bad_request(error):
+        return jsonify({
+            "success": False,
+            "error": 400,
+            "message": "bad request"
+        }), 400
+
 
     return app
 

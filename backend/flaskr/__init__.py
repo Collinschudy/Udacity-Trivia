@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import or_
 from flask_cors import CORS
 import random
+from  sqlalchemy.sql.expression import func, select
 
 from models import setup_db, Question, Category
 
@@ -250,14 +251,20 @@ def create_app(test_config=None):
                 else:
                     unique_questions = Question.query.filter_by(
                         category=category_id).filter(
-                            Question.id.notin_((previous_questions))).all()
-
+                            Question.id.not_in((previous_questions))).all()
                 if len(unique_questions) > 0:
-                    random_question = unique_questions[random.randrange(
-                        0, len(unique_questions))].format()
+                    formatted_questions = [random_question.format() for random_question in unique_questions]
+                    question = random.choice(formatted_questions)
+                # 
+                #     random_question = unique_questions[random.randrange(
+                #         0, len(unique_questions))].format()
+                    # random_question = unique_questions.query.order_by(func.random()).limit(1)
+                    # random_question = session.query(unique_questions).order_by(func.rand()).first().format()
+                    
+                        
                     return jsonify({
-                    'success': True,
-                    'question': random_question
+                        'success': True,
+                        'question': question
                     })
                 else:
                     return jsonify({
